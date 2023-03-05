@@ -11,19 +11,31 @@ body {
     background: hsl(235, 50%, 10%);
     display: grid;
     place-items: center;
+    padding: 4rem 1.5rem;
 }
 
+header,
 main {
     max-width: 600px;
-    margin: 4rem 1.5rem;
     display: grid;
     gap: 1rem;
-   
+}
+header {
+    margin-bottom: 2rem;
+}
+/* main {
+    grid-template-columns: 1fr 1fr;
+} */
+#loader1,
+#loader2 {
+    display: grid;
+    gap: 1rem;
 }
 h1 {
     color: hsl(335, 50%, 50%);
 }
-.card {
+.card,
+.loader {
     padding: 1rem;
     background: hsl(335, 50%, 50%);
     color: hsl(0, 0%, 100%);

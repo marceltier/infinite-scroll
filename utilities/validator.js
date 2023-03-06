@@ -1,10 +1,10 @@
-export const requiredValidator = value => {
+const requiredValidator = value => {
     value.forEach(item => {
         if (item.length === 0) throw new Error(`Required option isn't provided`)
     })
 }
 
-export const typeValidator = (value, type) => {
+const typeValidator = (value, type) => {
     value.forEach(item => {
         if (typeof item !== type) throw new Error(`${item} is not a ${type}`)
     });

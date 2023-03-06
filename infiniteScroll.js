@@ -1,112 +1,41 @@
-const infiniteScroll = customSettings => {
+import defaults from './defaults.js';
+import { displayError } from './utilities/error.js';
+import { settingsValidator } from './utilities/validator.js';
+
+const infiniteScroll = options => {
     "use strict";
     let currentPage = 0;
     let requestsNumber = 0;
     let requestsTimeout;
 
-    let settings = {
-        containerId: '',
-        url: '',
-        elements: [],
-        items: 10,
-        buffer: 0,
-        startAt: 0,
-        startAttributeName: '',
-        endAttributeName: '',
-        itemHtmlTag: 'div',
-        itemClassName: '',
-        threshold: 1.0,
-        loader: false,
-        loaderClassName: '',
-        loaderText: '',
-        requestsLimit: 3,
-        requestsLitmitTimeout: 5000
-    }
-    
-    settings = Object.assign(settings, customSettings);
-        
-    const displayError = error => {
-        const body = document.querySelector('body');
-        const errorElement = document.createElement('div');
-        errorElement.setAttribute("style", "position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999999; background: #fff; color: red; outline: 4px solid red; padding: 2rem; box-shadow: 10px 10px 10px rgba(0,0,0,.3); border-radius: 2rem;");
-        errorElement.textContent = error;
-        body.appendChild(errorElement);
-    }
+    const settings = Object.assign(defaults, options);
 
-    (function settingsValidator(settings) {
-
-        const requiredValidator = value => {
-            value.forEach(item => {
-                if (item.length === 0) throw new Error(`Required setting isn't provided`)
-            })
-        }
-
-        const typeValidator = (value, type) => {
-            value.forEach(item => {
-                if (typeof item !== type) throw new Error(`${item} is not a ${type}`)
-            });
-        }
-
-        try {
-            requiredValidator([
-                settings.containerId,
-                settings.url,
-                settings.startAttributeName,
-                settings.endAttributeName,
-            ])
-
-            typeValidator([
-                settings.containerId,
-                settings.url,
-                settings.startAttributeName,
-                settings.endAttributeName,
-                settings.itemHtmlTag,
-                settings.itemClassName,
-                settings.loaderClassName,
-                settings.loaderText,
-            ],
-            "string"
-            );
-
-            typeValidator([
-                settings.items,
-                settings.buffer,
-                settings.startAt,
-                settings.threshold,
-                settings.requestsLimit,
-                settings.requestsLitmitTimeout,
-            ],
-            "number"
-            );
-
-            typeValidator([
-                settings.loader
-            ],
-            "boolean"
-            );
-        }
-        catch (error) {
-            displayError(error);
-            throw error;
-        }
-    })(settings);
-    
-    const container = document.querySelector(`#${settings.containerId}`);
-
+    /**
+     * Adds or removes loader element
+     * 
+     * @param {boolean} status - true or false: add or remove loader element
+     */
     const displayLoader = status => {
         if (!settings.loader) return;
+
         if (status) {
             const loader = document.createElement('div');
             loader.className = `${settings.loaderClassName} loader-${settings.containerId}`;
             loader.textContent = settings.loaderText;
-            container.appendChild(loader);
+            document.querySelector(`#${settings.containerId}`).appendChild(loader);
         }
         if (!status) {
             const loaderEl = document.querySelector(`.loader-${settings.containerId}`);
-            container.removeChild(loaderEl);
+            document.querySelector(`#${settings.containerId}`).removeChild(loaderEl);
         }   
     }
 
+    /**
+     * Helper function that blocks too many requests from the user in a row
+     * 
+     * @param {object} settings 
+     * @param {number} currentPage 
+     */
     const requestsLimitHandler = (settings, currentPage) => {
         requestsTimeout = setTimeout(() => {
             requestsNumber = 0;
@@ -115,11 +44,19 @@ const infiniteScroll = customSettings => {
         }, settings.requestsLitmitTimeout);
     }
 
+    /**
+     * Helper function for setting a timeout for clearing the number of requests after the declared time
+     */
     const requestsLimitReset = () => {
         if (requestsTimeout) clearTimeout(requestsTimeout);
         requestsTimeout = setTimeout(() => requestsNumber = 0, settings.requestsLitmitTimeout);
     }
     
+    /**
+     * Helper function for loading new content after reaching the last element after previous data fetch
+     * 
+     * @param {string} element - node element that recieves intersetion observer to initalize new data request ("next page")
+     */
     const loadNextPage = element => {
         requestsNumber++;
         currentPage += settings.items;
@@ -134,6 +71,13 @@ const infiniteScroll = customSettings => {
         nextPageObserver.observe(element);
     }
 
+    /**
+     * Helper function for loading buffered items
+     * 
+     * @param {string} element - node element that recieves intersetion observer to initialize data load of buffered items
+     * @param {object} result - object with fetched data
+     * @param {number} buffer - number of items that are buffered
+     */
     const loadBufferItems = (element, result, buffer) => {
         const bufferItemsObserver = new IntersectionObserver(
             function (entries) {
@@ -146,6 +90,12 @@ const infiniteScroll = customSettings => {
         bufferItemsObserver.observe(element);
     }
 
+    /**
+     * Helper function for adding fetched data to the DOM
+     * 
+     * @param {object} result - object with fetched data
+     * @param {number} buffer - number of items that are buffered
+     */
     const generateData = (result, buffer) => {
         let bufferIndex = 0;
         let bufferedResult;
@@ -194,21 +144,38 @@ const infiniteScroll = customSettings => {
                     element.appendChild(child);
                 })
             }
+
             // Add item to the DOM:
             if (
                 settings.buffer === 0 
                 || itemNo <= settings.buffer 
                 || buffer > 0
-            ) container.appendChild(element);
+            ) document.querySelector(`#${settings.containerId}`).appendChild(element);
+
             // Add 'buffered items' observer to the last non-buffered element:
-            if (settings.buffer > 0 && itemNo === settings.buffer) loadBufferItems(element, bufferedResult, settings.buffer);
+            if (
+                settings.buffer > 0 
+                && itemNo === settings.buffer
+            ) loadBufferItems(element, bufferedResult, settings.buffer);
+
             // Add 'next page' observer to the last element of json fetch:
-            if (settings.buffer === 0 && itemNo === settings.items || settings.buffer === buffer && itemNo === settings.items) loadNextPage(element);
+            if (
+                settings.buffer === 0 && itemNo === settings.items 
+                || settings.buffer === buffer && itemNo === settings.items
+            ) loadNextPage(element);
         })
     }
 
+    /**
+     * Request data function
+     * 
+     * @param {object} settings - provides settings object to the function
+     * @param {number} currentPage - provides information how many times the data has been fetched
+     * @returns {Promise} - promise object of fetched JSON file
+     */
     const requestData = async (settings, currentPage) => {
         try {
+            settingsValidator(settings);
             const url = `${settings.url}?${settings.startAttributeName}=${settings.startAt + currentPage}&${settings.endAttributeName}=${settings.items + currentPage}`;
             displayLoader(true);
             if (requestsNumber >= settings.requestsLimit) return requestsLimitHandler(settings, currentPage);
@@ -223,7 +190,7 @@ const infiniteScroll = customSettings => {
             return displayError(error);
         }
     }   
-
     requestData(settings, 0);
 }
+
 export default infiniteScroll;

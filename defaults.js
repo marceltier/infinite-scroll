@@ -1,6 +1,6 @@
 export default {
     /**
-     * ID selector that determines where to place the content
+     * ID selector that determines where place the content
      *
      * @type {string}
      */
